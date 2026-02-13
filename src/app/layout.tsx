@@ -21,13 +21,19 @@ type RootLayoutProps = {
   children: React.ReactNode;
 };
 
+import { AuthProvider } from '@/lib/AuthContext';
+import { Toaster } from 'react-hot-toast';
+
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          <Toaster position="top-center" />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

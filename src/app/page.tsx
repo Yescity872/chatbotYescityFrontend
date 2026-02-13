@@ -21,7 +21,11 @@ interface MapParams {
   searchQuery?: string;
 }
 
+import { useAuth } from '@/lib/AuthContext';
+import SignupPage from '@/components/signup/SignupPage';
+
 export default function Home() {
+  const { user, loading } = useAuth();
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mapParams, setMapParams] = useState<MapParams | null>(null);
@@ -29,6 +33,18 @@ export default function Home() {
   // Shared Selection State
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [focusCoords, setFocusCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  if (loading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <SignupPage />;
+  }
 
   const handleMapRequest = (params: any) => {
     setMapParams(params);

@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Map as MapIcon, Loader2 } from 'lucide-react';
+import { Send, Map as MapIcon, Loader2, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/lib/AuthContext';
 
 
 interface Message {
@@ -17,6 +18,7 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ onMapRequest }: ChatInterfaceProps) {
+    const { logout } = useAuth();
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: 'Hi! I’m your YesCity guide. Ask me to find places or show you a map!' }
     ]);
@@ -74,9 +76,19 @@ export default function ChatInterface({ onMapRequest }: ChatInterfaceProps) {
         <div className="flex flex-col h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-white/20">
 
             {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <h2 className="font-semibold text-lg tracking-wide">YesCity AI</h2>
+            <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <h2 className="font-semibold text-lg tracking-wide">YesCity AI</h2>
+                </div>
+                <button
+                    onClick={() => logout()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10 shadow-sm"
+                    title="Logout"
+                >
+                    <LogOut size={14} />
+                    <span>Logout</span>
+                </button>
             </div>
 
             {/* Messages */}
