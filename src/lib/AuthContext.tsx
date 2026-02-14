@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/profile`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/profile`, {
         headers: {
           'Authorization': token || '',
         },
@@ -63,13 +63,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Run once on mount
   useEffect(() => {
+    console.log('AuthProvider mounted. Backend URL:', process.env.NEXT_PUBLIC_BACKEND_API_URL);
+    
+    // 🛠️ Grab token from URL if redirected from Google
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    
+    if (urlToken) {
+      console.log('Token found in URL!', urlToken.substring(0, 10) + '...');
+      localStorage.setItem('token', urlToken);
+      // Clean URL without reloading
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    } else {
+      console.log('No token found in URL.');
+    }
+
     refreshUser();
   }, []);
 
   // 🚪 Logout
   const logout = async () => {
     try {
-      const res = await fetch(`/api/auth/logout`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -88,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 🔑 Login
   const login = async (emailOrUsername: string, password: string) => {
     try {
-      const res = await fetch(`/api/auth/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emailOrUsername, password }),
@@ -116,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 📝 Signup
   const signup = async (payload: any) => {
     try {
-      const res = await fetch(`/api/auth/signup`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

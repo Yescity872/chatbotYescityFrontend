@@ -23,6 +23,8 @@ type RootLayoutProps = {
 
 import { AuthProvider } from '@/lib/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import Navbar from '@/components/navbar';
+import MainLayout from '@/components/MainLayout';
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
@@ -32,7 +34,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
       >
         <AuthProvider>
           <Toaster position="top-center" />
-          {children}
+          <Navbar />
+          <MainLayout>
+            {children}
+          </MainLayout>
         </AuthProvider>
       </body>
     </html>

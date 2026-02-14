@@ -1,5 +1,6 @@
 "use client";
 
+import AuthLayout from '@/components/auth/AuthLayout';
 import Link from 'next/link';
 import LoginForm from '@/components/login/LoginForm';
 import { useAuth } from '@/lib/AuthContext';
@@ -20,10 +21,6 @@ export default function LoginPage() {
     router.push('/');
   };
 
-  const handleClose = () => {
-    router.push('/');
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -33,8 +30,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <LoginForm onClose={handleClose} onLoginSuccess={handleLoginSuccess} />
-    </div>
+    <AuthLayout
+      title="Login to Continue"
+      subtitle="Sign in to your account"
+      footerContent={
+        <p className="text-sm text-gray-600">
+          Don't have an account?{' '}
+          <Link href="/signup" className="font-semibold text-sky-600 hover:text-sky-700">
+            Sign up now
+          </Link>
+        </p>
+      }
+    >
+      <LoginForm onLoginSuccess={handleLoginSuccess} isPage={true} />
+    </AuthLayout>
   );
 }

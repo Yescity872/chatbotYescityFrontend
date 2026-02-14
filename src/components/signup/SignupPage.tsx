@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import AuthLayout from '@/components/auth/AuthLayout';
 
 // 🔹 Imported Components
 import StepProgress from '@/components/signup/StepProgress';
@@ -16,12 +17,6 @@ const Loading = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
   </div>
-);
-
-const Footer = () => (
-  <footer className="py-6 text-center text-gray-400 text-sm">
-    &copy; {new Date().getFullYear()} YesCity. All rights reserved.
-  </footer>
 );
 
 export default function SignupPage() {
@@ -121,7 +116,7 @@ export default function SignupPage() {
     setError('');
 
     try {
-      const response = await fetch(`/api/auth/send-otp`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -136,12 +131,7 @@ export default function SignupPage() {
       setOtpSent(true);
       startOtpTimer();
 
-      const successMsg = document.createElement('div');
-      successMsg.className =
-        'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-      successMsg.textContent = 'OTP sent to your email!';
-      document.body.appendChild(successMsg);
-      setTimeout(() => successMsg.remove(), 3000);
+      toast.success('OTP sent to your email!');
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to send OTP');
@@ -166,7 +156,7 @@ export default function SignupPage() {
 
     try {
       // Verify OTP with backend
-      const response = await fetch(`/api/auth/verify-otp`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp }),
@@ -182,12 +172,7 @@ export default function SignupPage() {
       setOtpVerified(true);
       setTimeout(() => setShowNextStep(true), 100);
 
-      const successMsg = document.createElement('div');
-      successMsg.className =
-        'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-      successMsg.textContent = 'Email verified! Complete your registration';
-      document.body.appendChild(successMsg);
-      setTimeout(() => successMsg.remove(), 3000);
+      toast.success('Email verified! Complete your registration');
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Invalid or expired OTP');
@@ -241,101 +226,67 @@ export default function SignupPage() {
     })
   );
 
-  window.location.href =
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google?${params.toString()}`;
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/google?${params.toString()}`;
+    console.log('Redirecting to Google OAuth (Signup):', redirectUrl);
+    window.location.href = redirectUrl;
 };
 
   return (
     <Suspense fallback={<Loading />}>
-      <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-white overflow-hidden flex items-center justify-center">
-        <div className="w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          {/* Back link */}
-          <Link
-            href="/"
-            className="mb-6 flex items-center text-sky-600 hover:text-sky-700 transition-colors font-medium"
-          >
-            ← Back to Home
-          </Link>
+      <AuthLayout
+        title="Create Account"
+        subtitle="Join YesCity to explore hidden gems"
+        footerContent={
+          <p className="text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link href="/login" className="font-semibold text-sky-600 hover:text-sky-700">
+              Sign in
+            </Link>
+          </p>
+        }
+      >
+        <div className="space-y-6">
+          <StepProgress otpVerified={otpVerified} />
+          <ErrorAlert error={error} />
 
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] w-full max-w-full">
-            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-sky-100 overflow-hidden">
-              <div className="px-8 py-8">
-                {/* Header */}
-                <div className="text-center mb-6">
-                  <h1 className="text-3xl font-bold text-gray-800 mb-2">Create Account</h1>
-                  <div className="w-16 h-1 bg-gradient-to-r from-sky-400 to-blue-500 mx-auto rounded-full mb-6"></div>
-                </div>
+          {/* Step 1: Email Verification */}
+          <div className={otpVerified && showNextStep ? 'hidden' : 'block'}>
+            <EmailVerification
+              email={email}
+              setEmail={setEmail}
+              otp={otp}
+              setOtp={setOtp}
+              referredBy={referredBy}
+              setReferredBy={setReferredBy}
+              maskedReferral={maskedReferral}
+              otpSent={otpSent}
+              otpVerified={otpVerified}
+              isOtpSending={isOtpSending}
+              isOtpVerifying={isOtpVerifying}
+              otpTimer={otpTimer}
+              sendOtp={sendOtp}
+              verifyOtp={verifyOtp}
+              searchParams={searchParams}
+              handleGoogleSignIn={handleGoogleSignIn}
+            />
+          </div>
 
-                {/* Step Progress */}
-                <StepProgress otpVerified={otpVerified} />
-
-                {/* Error */}
-                <ErrorAlert error={error} />
-
-                {/* Step 1: Email Verification */}
-                <div
-                  className={`transition-all duration-500 ease-in-out ${
-                    otpVerified && showNextStep
-                      ? 'transform -translate-x-full opacity-0 absolute hidden'
-                      : 'transform translate-x-0 opacity-100'
-                  }`}
-                >
-                  <EmailVerification
-                    email={email}
-                    setEmail={setEmail}
-                    otp={otp}
-                    setOtp={setOtp}
-                    referredBy={referredBy}
-                    setReferredBy={setReferredBy}
-                    maskedReferral={maskedReferral}
-                    otpSent={otpSent}
-                    otpVerified={otpVerified}
-                    isOtpSending={isOtpSending}
-                    isOtpVerifying={isOtpVerifying}
-                    otpTimer={otpTimer}
-                    sendOtp={sendOtp}
-                    verifyOtp={verifyOtp}
-                    searchParams={searchParams}
-                    handleGoogleSignIn={handleGoogleSignIn}
-                  />
-                </div>
-
-                {/* Step 2: Account Details */}
-                <div
-                  className={`transition-all duration-500 ease-in-out ${
-                    otpVerified && showNextStep
-                      ? 'transform translate-x-0 opacity-100'
-                      : 'transform translate-x-full opacity-0 absolute hidden'
-                  }`}
-                >
-                  <AccountDetailsForm
-                    username={username}
-                    setUsername={setUsername}
-                    email={email}
-                    setEmail={setEmail}
-                    password={password}
-                    setPassword={setPassword}
-                    isLoading={isLoading}
-                    handleSubmit={handleSubmit}
-                    handleGoogleSignIn={handleGoogleSignIn}
-                  />
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-gray-100 bg-sky-50 px-8 py-4 text-center rounded-b-3xl">
-                <p className="text-sm text-gray-600">
-                  Already have an account?{' '}
-                  <Link href="/login" className="font-semibold text-sky-600 hover:text-sky-700">
-                    Sign in
-                  </Link>
-                </p>
-              </div>
-            </div>
+          {/* Step 2: Account Details */}
+          <div className={otpVerified && showNextStep ? 'block' : 'hidden'}>
+            <AccountDetailsForm
+              username={username}
+              setUsername={setUsername}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              isLoading={isLoading}
+              handleSubmit={handleSubmit}
+              handleGoogleSignIn={handleGoogleSignIn}
+            />
           </div>
         </div>
-      </div>
-      <Footer />
+      </AuthLayout>
     </Suspense>
   );
 }

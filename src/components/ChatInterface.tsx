@@ -51,7 +51,7 @@ export default function ChatInterface({ onMapRequest }: ChatInterfaceProps) {
             // Add current message
             const currentMessage = { role: 'user', parts: [{ text: userMsg }] };
 
-            const response = await axios.post('/api/chat', {
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/chat`, {
                 history: history, // Send previous context
                 message: userMsg  // Current input
             });
