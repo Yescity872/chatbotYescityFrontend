@@ -22,10 +22,13 @@ type RootLayoutProps = {
 };
 
 import { AuthProvider } from '@/lib/AuthContext';
+import { NavbarProvider } from '@/lib/NavbarContext';
+import { RewardProvider } from '@/lib/RewardContext';
 import { Toaster } from 'react-hot-toast';
 import Navbar from '@/components/navbar';
 import MainLayout from '@/components/MainLayout';
-
+import Footer from '@/components/Footer';
+//import ChatInterface from "@/components/ChatInterface"; 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
@@ -33,11 +36,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <Toaster position="top-center" />
-          <Navbar />
-          <MainLayout>
-            {children}
-          </MainLayout>
+          <RewardProvider>
+            <NavbarProvider>
+              <Toaster position="top-center" />
+              <Navbar />
+              <MainLayout>
+                {children}
+              </MainLayout>
+              <Footer />
+            </NavbarProvider>
+          </RewardProvider>
         </AuthProvider>
       </body>
     </html>

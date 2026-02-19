@@ -208,6 +208,7 @@ export default function MapComponent({
     focusCoords,
     onMarkerClick,
     searchQuery = "",
+    markers = [],
 }) {
     const [data, setData] = useState(null);
     const [userLocation, setUserLocation] = useState(null);
@@ -342,12 +343,14 @@ export default function MapComponent({
     if (!data) return <div className="text-center py-10">Loading map for {cityName}...</div>;
 
     // ✅ Flatten all markers and ensure they have valid coordinates
-    const allMarkers = Object.entries(data)
-        .flatMap(([category, items]) =>
-            items
-                .map((item) => ({ ...item, category }))
-                .filter(item => isValidCoordinate(item.lat, item.lon))
-        );
+    const allMarkers = [
+        ...Object.entries(data)
+            .flatMap(([category, items]) =>
+                items
+                    .map((item) => ({ ...item, category }))
+            ),
+        ...markers.map(m => ({ ...m, category: m.category || "Place" }))
+    ].filter(item => isValidCoordinate(item.lat, item.lon));
 
     // ✅ Category filtering
     let visibleMarkers =

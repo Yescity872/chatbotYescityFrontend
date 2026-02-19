@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { memo } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { useNavbarContext } from "@/lib/NavbarContext";
+import { useRewardContext } from "@/lib/RewardContext";
 import LoginForm from "@/components/login/LoginForm";
 import { FaStar, FaUsers, FaHeart } from "react-icons/fa";
 import ProfileDropdown from "./ProfileDropdown";
@@ -20,19 +23,41 @@ import {
 import { GiFireBowl } from "react-icons/gi";
 import { MdOutlineSmartToy } from "react-icons/md"; // chatbot icon
 
-/* ✅ Helper functions */
-function linkClass(pathname: string, path: string) {
-  return `font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
-    pathname === path
+/* ✅ NavItem component to handle its own re-renders on path change */
+function NavItem({ 
+  href, 
+  children, 
+  className, 
+  isExact = true,
+  onClick
+}: { 
+  href: string; 
+  children: React.ReactNode; 
+  className?: (isActive: boolean) => string; 
+  isExact?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+}) {
+  const { pathname } = useNavbarContext();
+  const isActive = isExact ? pathname === href : pathname.startsWith(href);
+  
+  const defaultClass = (active: boolean) => `font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
+    active
       ? "border-[#1E88E5] text-[#1E88E5]"
       : "border-transparent hover:border-black"
   }`;
+
+  return (
+    <Link href={href} className={className ? className(isActive) : defaultClass(isActive)} onClick={onClick}>
+      {children}
+    </Link>
+  );
 }
 
-export default function Navbar() {
-  const pathname = usePathname();
+const Navbar = memo(function Navbar() {
   const router = useRouter();
+  const { pathname } = useNavbarContext(); // Still needed for handleSignOut logic, or we can move it
   const { user, loading, logout } = useAuth();
+  const { contributionPoints, addedPoints } = useRewardContext();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -40,26 +65,6 @@ export default function Navbar() {
     null
   );
 
-  // Animation states
-  const [prevPoints, setPrevPoints] = useState<number>(0);
-  const [addedPoints, setAddedPoints] = useState<number | null>(null);
-
-  // ✅ Contribution points animation
-  useEffect(() => {
-    if (user) {
-      const currentPoints = user.contributionPoints || 0;
-
-      if (currentPoints > prevPoints) {
-        setAddedPoints(currentPoints - prevPoints);
-        setTimeout(() => setAddedPoints(null), 1500);
-      }
-
-      setPrevPoints(currentPoints);
-    }
-  }, [user, prevPoints]);
-
-  // ✅ NAVBAR SHOULD ONLY APPEAR ONCE LOGGED IN
-  if (loading || !user) return null;
 
   // ✅ Protected route handler
   const handleProtectedClick = (e: React.MouseEvent, path: string) => {
@@ -102,25 +107,26 @@ export default function Navbar() {
 
         {/* Desktop Links */}
         <div className="hidden md:flex h-[42px] items-center gap-5">
-          <Link href="/" className={linkClass(pathname, "/")}>
+          <NavItem href="/">
             Home
-          </Link>
-          <Link href="/blogs" className={linkClass(pathname, "/blogs")}>
+          </NavItem>
+          <NavItem href="/blogs">
             Blogs
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/allConnect"
-            className={`flex items-center gap-2 font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
-              pathname.startsWith("/allConnect")
+            isExact={false}
+            className={(isActive) => `flex items-center gap-2 font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
+              isActive
                 ? "border-[#1E88E5] text-[#1E88E5]"
                 : "border-transparent hover:border-black"
             }`}
           >
             Connect
-          </Link>
+          </NavItem>
 
-          <Link href="/chatbot" className={` ${linkClass(pathname, "/chatbot")} flex items-center gap-2 `}>
+          <NavItem href="/chatbot" className={(isActive) => ` ${isActive ? "border-[#1E88E5] text-[#1E88E5]" : "border-transparent hover:border-black"} font-medium text-[18px] p-1 border-b-2 transition-all duration-300 flex items-center gap-2 `}>
             Cities
             <motion.span
               initial={{ y: 0 }}
@@ -134,35 +140,37 @@ export default function Navbar() {
             >
               NEW
             </motion.span>
-          </Link>
+          </NavItem>
 
-          <Link href="/ai-chat" className={` ${linkClass(pathname, "/ai-chat")} flex items-center gap-2 `}>
+          <NavItem href="/ai-chat" className={(isActive) => ` ${isActive ? "border-[#1E88E5] text-[#1E88E5]" : "border-transparent hover:border-black"} font-medium text-[18px] p-1 border-b-2 transition-all duration-300 flex items-center gap-2 `}>
             AI Chat
             <HiSparkles className="text-blue-500" />
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/festivals"
-            className={`flex items-center gap-2 font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
-              pathname.startsWith("/festivals")
+            isExact={false}
+            className={(isActive) => `flex items-center gap-2 font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
+              isActive
                 ? "border-[#1E88E5] text-[#1E88E5]"
                 : "border-transparent hover:border-black"
             }`}
           >
             Festivals
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/wishlist"
+            isExact={false}
             onClick={(e) => handleProtectedClick(e, "/wishlist")}
-            className={`font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
-              pathname.startsWith("/wishlist")
+            className={(isActive) => `font-medium text-[18px] p-1 border-b-2 transition-all duration-300 ${
+              isActive
                 ? "border-[#1E88E5] text-[#1E88E5]"
                 : "border-transparent hover:border-black"
             }`}
           >
             Wishlist
-          </Link>
+          </NavItem>
         </div>
 
         {/* Right Section */}
@@ -178,7 +186,7 @@ export default function Navbar() {
                   transition-transform duration-200 hover:scale-105"
               >
                 <FaStar className="text-yellow-500 text-md md:text-lg" />
-                {user.contributionPoints || 0}
+                {contributionPoints}
               </div>
             </Link>
 
@@ -198,7 +206,15 @@ export default function Navbar() {
             </AnimatePresence>
           </div>
 
-          <ProfileDropdown user={user} handleSignOut={handleSignOut} />
+          {user && <ProfileDropdown user={user} handleSignOut={handleSignOut} />}
+          {!user && !loading && (
+            <Link 
+              href="/login" 
+              className="px-4 py-2 rounded-full bg-sky-500 text-white text-sm font-bold hover:bg-sky-600 transition-all font-outfit"
+            >
+              Log In
+            </Link>
+          )}
         </div>
 
         <button
@@ -265,9 +281,9 @@ export default function Navbar() {
 
             <div className="flex gap-4 mt-3 text-sm">
               <span className="flex items-center gap-1 text-yellow-600 font-medium">
-                <FaStar /> {user.contributionPoints ?? 0} Points
+                <FaStar /> {contributionPoints} Points
               </span>
-              {typeof user.referralCount === "number" && (
+              {typeof user?.referralCount === "number" && (
                 <span className="flex items-center gap-1 text-blue-600 font-medium">
                   <HiSparkles /> {user.referralCount} Referrals
                 </span>
@@ -278,11 +294,11 @@ export default function Navbar() {
 
         {/* mobile nav links */}
         <div className="flex flex-col p-4 gap-2">
-          <Link
+          <NavItem
             href="/chatbot"
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname === "/chatbot"
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
@@ -301,102 +317,104 @@ export default function Navbar() {
             >
               NEW
             </motion.span>
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/ai-chat"
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname === "/ai-chat"
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <HiSparkles size={20} className="text-[#1E88E5]" />
             AI Chat
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/festivals"
+            isExact={false}
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname.startsWith("/festivals")
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <GiFireBowl className="text-[#1E88E5]" size={20} />
             Festivals
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/allConnect"
+            isExact={false}
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname.startsWith("/allConnect")
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <FaUsers className="text-[#1E88E5]" size={20} />
             Connect
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/blogs"
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname === "/blogs"
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <HiOutlineDocument size={20} className="text-[#1E88E5]" />
             Blogs
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/about"
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname === "/about"
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <HiOutlineInformationCircle size={20} className="text-[#1E88E5]" />
             About
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/contact"
             onClick={() => setIsOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname === "/contact"
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <HiOutlinePhone size={20} className="text-[#1E88E5]" />
             Contact
-          </Link>
+          </NavItem>
 
-          <Link
+          <NavItem
             href="/wishlist"
+            isExact={false}
             onClick={(e) => {
-              e.preventDefault();
               handleProtectedClick(e, "/wishlist");
               setIsOpen(false);
             }}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
-              pathname.startsWith("/wishlist")
+            className={(isActive) => `flex items-center gap-3 px-3 py-2 rounded-lg text-lg font-medium transition-all ${
+              isActive
                 ? "bg-blue-100 text-[#1E88E5]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             <FaHeart className="text-[#1E88E5]" size={20} />
             Wishlist
-          </Link>
+          </NavItem>
         </div>
       </div>
 
@@ -416,4 +434,6 @@ export default function Navbar() {
       )}
     </>
   );
-}
+});
+
+export default Navbar;

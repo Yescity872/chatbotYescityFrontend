@@ -11,6 +11,9 @@ export async function POST(req: Request) {
     }
 
     const db = await getDatabase();
+    if (!db) {
+      return NextResponse.json({ message: 'Database connection failed' }, { status: 500 });
+    }
     const usersCollection = db.collection('users');
 
     // Find user by email or username
@@ -51,8 +54,14 @@ export async function POST(req: Request) {
       },
       token: 'dummy-token-' + user._id,
     });
-  } catch (error) {
-    console.error('Login Error:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Login Error details:', {
+      message: error.message,
+      stack: error.stack,
+    });
+    return NextResponse.json({ 
+      message: error.message === 'Database connection failed' ? 'Database connection failed' : 'Invalid credentials',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }

@@ -8,10 +8,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   // If user is logged in, we add padding to top to account for fixed navbar
   // If not logged in, we don't need the padding since navbar is null
-  const shouldAddPadding = !loading && user;
-
   return (
-    <main className={shouldAddPadding ? "pt-[80px]" : ""}>
+    <main className="pt-[80px] min-h-[calc(100vh-80px)]">
       {children}
     </main>
   );

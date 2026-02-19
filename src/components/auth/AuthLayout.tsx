@@ -17,15 +17,8 @@ export default function AuthLayout({
   footerContent,
 }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-white overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100-80px)] bg-gradient-to-br from-sky-50 via-blue-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        {/* Back link */}
-        <Link
-          href="/"
-          className="mb-6 flex items-center text-sky-600 hover:text-sky-700 transition-colors font-medium"
-        >
-          ← Back to Home
-        </Link>
 
         <div className="rounded-3xl bg-white shadow-2xl border border-sky-100 overflow-hidden">
           <div className="px-8 py-8">

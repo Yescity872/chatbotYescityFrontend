@@ -10,6 +10,7 @@ interface MapComponentProps {
     onMarkerClick?: (id: string, coords: { lat: number; lon: number }) => void;
     isWishlistMode?: boolean;
     searchQuery?: string;
+    markers?: any[];
 }
 
 declare const MapComponent: ComponentType<MapComponentProps>;
