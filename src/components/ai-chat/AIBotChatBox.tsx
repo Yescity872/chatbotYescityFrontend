@@ -3,20 +3,19 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import AIBotInput from "./AIBotInput";
 import AIBotMessage from "./AIBotMessage";
-// import { connectApi } from "@/utils/connectApi";
-// import { fetchCategoryData, searchCategory } from "@/utils/api";
-// import { CategoryType } from "@/types";
 
 export type AIBotMessageType = {
   role: "user" | "assistant";
   text: string;
-  data?: any;
+  recommendations?: any[];
+  cityName?: string;
 };
 
 export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params: any) => void }) {
   const [messages, setMessages] = useState<AIBotMessageType[]>([]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [lastCity, setLastCity] = useState("Varanasi"); // Default city
 
   // Auto-scroll to bottom whenever messages change
   useEffect(() => {
@@ -25,80 +24,128 @@ export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params:
     }
   }, [messages, loading]);
 
-  const mapRAGCategory = (category: string): string => {
-    const categoryMap: Record<string, string> = {
-      accommodation: "Accommodation",
-      activity: "Activity",
-      cityinfo: "CityInfo",
-      connectivity: "Connectivity",
-      food: "Food",
-      hiddengem: "HiddenGem",
-      itinerary: "Itinerary",
-      misc: "Misc",
-      nearbyspot: "NearbySpot",
-      place: "Place",
-      shop: "Shop",
-      transport: "Transport",
-    };
-    return categoryMap[category.toLowerCase()] || category;
+  const extractCity = (query: string) => {
+    // Simple extraction for common cities, can be expanded
+    const cities = ["Varanasi", "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Kolkata", "Chennai", "Pune"];
+    const found = cities.find(city => query.toLowerCase().includes(city.toLowerCase()));
+    return found || lastCity;
   };
 
   const sendQuery = async (query: string) => {
+    const currentCity = extractCity(query);
+    if (currentCity !== lastCity) setLastCity(currentCity);
+
     setMessages((prev) => [...prev, { role: "user", text: query }]);
     setLoading(true);
 
     try {
-      const selectedCity = localStorage.getItem("selectedCity") || "Varanasi";
-      
-      // Filter history to send only user/assistant text for context
-      const history = messages.map(m => ({ 
-        role: m.role === 'user' ? 'user' : 'model', 
-        parts: [{ text: m.text }] 
+      // Determine which API to use based on keywords (shops/food)
+      const shopFoodKeywords = ["shop", "shops", "food", "restaurant", "eat", "cafe", "bakery", "market"];
+      const isShopOrFoodQuery = shopFoodKeywords.some(keyword => 
+        query.toLowerCase().includes(keyword)
+      );
+
+      const apiUrl = isShopOrFoodQuery
+        ? process.env.NEXT_PUBLIC_RESEARCH_API_URL
+        : `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/chat`;
+
+      console.log(`Routing query to: ${apiUrl}`);
+
+      // Correct history roles (user/model) for Gemini
+      const formattedHistory = messages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.text }]
       }));
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/chat`, {
+      const requestBody = isShopOrFoodQuery 
+        ? { query } 
+        : { history: formattedHistory, message: query };
+
+      console.log("Sending request to:", apiUrl, "Body:", requestBody);
+
+      const res = await fetch(apiUrl || "", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          history: history,
-          message: query,
-          city: selectedCity 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = {};
       }
 
-      const data = await res.json();
-      console.log("AI Chat API Response:", data);
-      
-      let textResponse = data.reply || "I didn't understand that.";
-      let resultData: any = null;
+      if (!res.ok) {
+        console.error("API Error Response:", data);
+        throw new Error(data.message || data.error || data.detail?.[0]?.msg || data.detail || `API error: ${res.status}`);
+      }
 
-      if (data.type === 'tool_use' && data.tool === 'map') {
-        resultData = {
-          type: "map",
-          map: {
-            center: data.params?.center || [25.3176, 82.9739],
-            markers: data.params?.markers || []
+      let textResponse = data.reply || data.response || "I didn't understand that.";
+      let recommendations = undefined;
+
+      // Handle Research AI response parsing
+      if (isShopOrFoodQuery && data.response) {
+        try {
+          const parsed = typeof data.response === "string" ? JSON.parse(data.response) : data.response;
+
+          if (parsed?.recommendations?.length) {
+            // 🔥 Fetch real details using IDs with dynamic category detection
+            const detailedResults = await Promise.all(
+              parsed.recommendations.map(async (rec: any) => {
+                try {
+                  const name = (rec.shops || rec.name || "").toLowerCase();
+                  const reason = (rec.reason || "").toLowerCase();
+                  
+                  // Detect category
+                  const isFood = name.includes('food') || name.includes('restaurant') || 
+                                name.includes('cafe') || reason.includes('food') || 
+                                reason.includes('taste') || reason.includes('eat');
+                  const category = isFood ? "Food" : "Shop";
+
+                  const shopRes = await fetch(
+                    `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/city/${currentCity}/${category}/${rec._id}`
+                  );
+
+                  const shopData = await shopRes.json();
+
+                  if (shopData?.success && shopData?.data) {
+                    return {
+                      ...shopData.data,
+                      category, // Ensure normalized category is present
+                      aiReason: rec.reason,
+                    };
+                  }
+
+                  // Fallback: If not in DB, return the original AI recommendation
+                  return {
+                    ...rec,
+                    category,
+                    aiReason: rec.reason,
+                    name: rec.shops || rec.name, // Normalize name field
+                  };
+                } catch (err) {
+                  console.error("Error fetching shop details:", err);
+                  return {
+                    ...rec,
+                    aiReason: rec.reason,
+                    name: rec.shops || rec.name,
+                  };
+                }
+              })
+            );
+
+            recommendations = detailedResults.filter(Boolean);
+            textResponse = "Here are some recommendations for you:";
           }
-        };
-        // Also trigger global map view if callback provided
-        if (onMapRequest) {
-            onMapRequest(data.params);
+        } catch (e) {
+          console.error("Failed to parse research recommendations:", e);
         }
-      } else if (data.results || data.items) {
-          const resultsArray = data.results || data.items;
-          const mappedCategory = data.category ? mapRAGCategory(data.category) : "Place";
-          resultData = {
-              type: "cards",
-              category: mappedCategory,
-              items: resultsArray.map((item: any) => ({
-                  ...item,
-                  cityName: item.cityName || selectedCity
-              }))
-          };
+      }
+
+      // If tool use map is detected, trigger onMapRequest
+      if (data.type === 'tool_use' && data.tool === 'map' && onMapRequest) {
+          onMapRequest(data.params);
       }
 
       setMessages((prev) => [
@@ -106,7 +153,8 @@ export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params:
         {
           role: "assistant",
           text: textResponse,
-          data: resultData
+          recommendations,
+          cityName: currentCity
         },
       ]);
     } catch (err: any) {
@@ -130,7 +178,7 @@ export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params:
         className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 sm:px-6 space-y-6 mb-12 scrollbar-hide scroll-smooth"
       >
         {messages.map((msg, idx) => (
-          <AIBotMessage key={idx} message={msg} />
+          <AIBotMessage key={idx} message={msg} onMapRequest={onMapRequest} />
         ))}
 
         {loading && (

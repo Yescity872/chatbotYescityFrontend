@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@google/genai": "^1.42.0",
     "@google/generative-ai": "^0.24.1",
     "@types/bcryptjs": "^3.0.0",
     "axios": "^1.13.4",

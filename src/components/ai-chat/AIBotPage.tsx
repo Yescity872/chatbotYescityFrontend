@@ -5,11 +5,12 @@ import AIBotChatBox from "./AIBotChatBox";
 import { useState } from "react";
 import dynamic from 'next/dynamic';
 import { X } from 'lucide-react';
+import { useAuth } from "@/lib/AuthContext";
 // @ts-ignore
-import PlacesSidebar from '@/components/PlacesSidebar';
+import Sidebar from '@/components/maps/Sidebar';
 
 // Dynamic import for Map to avoid SSR issues with Leaflet
-const MapComponent = dynamic(() => import('@/components/MapComponent.jsx'), {
+const MapComponent = dynamic(() => import('@/components/maps/MapComponent.jsx'), {
   ssr: false,
   loading: () => <div className="w-full h-full flex items-center justify-center bg-gray-100/10 text-white/40">Loading Map...</div>
 });
@@ -21,11 +22,19 @@ interface MapParams {
 }
 
 export default function AIBotPage() {
+  const { user } = useAuth();
+  
   // Sidebar/Map State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mapParams, setMapParams] = useState<MapParams | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [focusCoords, setFocusCoords] = useState<{ lat: number; lon: number } | null>(null);
+  
+  // Sidebar missing props state
+  const [radius, setRadius] = useState(500);
+  const [isNearbyMode, setIsNearbyMode] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState("");
 
   const handleMapRequest = (params: any) => {
     setMapParams(params);
@@ -38,26 +47,25 @@ export default function AIBotPage() {
     setIsSidebarOpen(false);
   };
 
-  const handleMarkerClick = (id: string, coords: { lat: number, lon: number }) => {
+  const handleMarkerClick = (coords: { lat: number, lon: number }, id: string) => {
     setSelectedItemId(id);
     setFocusCoords(coords);
   };
 
-  const handleCardClick = (id: string, coords: { lat: number; lon: number }) => {
+  const handleCardClick = (coords: { lat: number, lon: number }, id: string) => {
     setSelectedItemId(id);
     setFocusCoords(coords);
   };
 
   return (
     <div
-      className="relative min-h-screen w-full flex flex-col items-center justify-start pt-20 sm:pt-24 px-4 overflow-hidden"
+      className="relative min-h-screen w-full flex flex-col items-center justify-start pt-20 sm:pt-24 pb-20 sm:pb-32 px-4 overflow-hidden"
       style={{
         background:
           "radial-gradient(circle at top, #525F86 0%, #152C71 45%, #0f1f4a 100%)",
       }}
     >
       {/* Background Illustrations */}
-      
       {!isSidebarOpen && (
         <>
           {/* Plane at the top */}
@@ -130,22 +138,16 @@ export default function AIBotPage() {
       )}
 
       <div className={`relative z-10 w-full transition-all duration-500 flex flex-col items-center ${isSidebarOpen ? 'max-w-full h-[calc(100vh-120px)] px-2' : 'max-w-6xl'}`}>
-        
         {!isSidebarOpen && (
           <div className="text-center">
-            {/* Heading */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 tracking-tight drop-shadow-md">
-              Welcome to YesCity <span className="text-blue-400"></span>
+              Welcome to YesCity
             </h1>
-
-            {/* Subheading */}
-            <p className="text-white/90 text-base sm:text-lg md:text-xl 
-                  mb-12 max-w-2xl mx-auto text-center font-light drop-shadow-sm">
-                  Your personal travel companion, powered by intelligence.
+            <p className="text-white/90 text-base sm:text-lg md:text-xl mb-12 max-w-2xl mx-auto text-center font-light drop-shadow-sm">
+              Your personal travel companion, powered by intelligence.
             </p>
           </div>
         )}
-
 
         <div className={`w-full h-full flex gap-4 transition-all duration-500 overflow-hidden ${isSidebarOpen ? 'flex-col lg:flex-row' : 'flex-col'}`}>
           {/* AI Chat Experience */}
@@ -182,12 +184,17 @@ export default function AIBotPage() {
 
                 {/* Sidebar */}
                 <div className="w-full lg:w-[320px] xl:w-[380px] h-[300px] lg:h-full overflow-hidden bg-gray-50 lg:border-r border-gray-100">
-                  <PlacesSidebar
+                  <Sidebar
                     cityName={mapParams.cityName}
                     selectedCategory={mapParams.category}
                     searchQuery={mapParams.searchQuery}
                     selectedItemId={selectedItemId}
                     onCardClick={handleCardClick}
+                    radius={radius}
+                    isNearbyMode={isNearbyMode}
+                    user={user}
+                    setShowLoginModal={setShowLoginModal}
+                    setRedirectAfterLogin={setRedirectAfterLogin}
                   />
                 </div>
 
