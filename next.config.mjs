@@ -2,8 +2,6 @@
 const nextConfig = {
   /* config options here */
   reactCompiler: true,
-<<<<<<< Updated upstream
-=======
   images: {
     remotePatterns: [
       {
@@ -20,7 +18,6 @@ const nextConfig = {
       },
     ],
   },
->>>>>>> Stashed changes
 };
 
 export default nextConfig;
