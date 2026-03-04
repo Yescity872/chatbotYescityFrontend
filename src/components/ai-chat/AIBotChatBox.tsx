@@ -25,9 +25,13 @@ export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params:
   }, [messages, loading]);
 
   const extractCity = (query: string) => {
-    // Simple extraction for common cities, can be expanded
-    const cities = ["Varanasi", "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Kolkata", "Chennai", "Pune"];
-    const found = cities.find(city => query.toLowerCase().includes(city.toLowerCase()));
+    // Expanded list of recognized cities
+    const cities = [
+      "Varanasi", "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Kolkata", "Chennai", "Pune",
+      "Agra", "Jaipur", "Lucknow", "Ayodhya", "Kanpur", "Prayagraj", "Mathura", "Rishikesh"
+    ];
+    const lowerQuery = query.toLowerCase();
+    const found = cities.find(city => lowerQuery.includes(city.toLowerCase()));
     return found || lastCity;
   };
 
@@ -39,27 +43,15 @@ export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params:
     setLoading(true);
 
     try {
-      // Determine which API to use based on keywords (shops/food)
-      const shopFoodKeywords = ["shop", "shops", "food", "restaurant", "eat", "cafe", "bakery", "market"];
-      const isShopOrFoodQuery = shopFoodKeywords.some(keyword => 
-        query.toLowerCase().includes(keyword)
-      );
+      // Get auth token for internal backend requests
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-      const apiUrl = isShopOrFoodQuery
-        ? process.env.NEXT_PUBLIC_RESEARCH_API_URL
-        : `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/chat`;
+      // Determine if this is a query that should go to the Research AI
+      const apiUrl = process.env.NEXT_PUBLIC_RESEARCH_API_URL;
 
-      console.log(`Routing query to: ${apiUrl}`);
+      console.log(`Routing all queries to Research AI: ${apiUrl}`);
 
-      // Correct history roles (user/model) for Gemini
-      const formattedHistory = messages.map(m => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.text }]
-      }));
-
-      const requestBody = isShopOrFoodQuery 
-        ? { query } 
-        : { history: formattedHistory, message: query };
+      const requestBody = { query };
 
       console.log("Sending request to:", apiUrl, "Body:", requestBody);
 
@@ -85,53 +77,88 @@ export default function AIBotChatBox({ onMapRequest }: { onMapRequest?: (params:
       let recommendations = undefined;
 
       // Handle Research AI response parsing
-      if (isShopOrFoodQuery && data.response) {
+      if (data.response) {
         try {
           const parsed = typeof data.response === "string" ? JSON.parse(data.response) : data.response;
 
           if (parsed?.recommendations?.length) {
-            // 🔥 Fetch real details using IDs with dynamic category detection
+            // 🔥 Try multiple categories to fetch real details using IDs
             const detailedResults = await Promise.all(
               parsed.recommendations.map(async (rec: any) => {
-                try {
-                  const name = (rec.shops || rec.name || "").toLowerCase();
-                  const reason = (rec.reason || "").toLowerCase();
-                  
-                  // Detect category
-                  const isFood = name.includes('food') || name.includes('restaurant') || 
-                                name.includes('cafe') || reason.includes('food') || 
-                                reason.includes('taste') || reason.includes('eat');
-                  const category = isFood ? "Food" : "Shop";
+                const categories = [
+                  "food",
+                  "shop",
+                  "place",
+                  "accommodation",
+                  "activity",
+                  "transport",
+                  "hiddenGem",
+                  "nearbySpot",
+                  "connectivity"
+                ];
 
-                  const shopRes = await fetch(
-                    `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/city/${currentCity}/${category}/${rec._id}`
-                  );
+                let shopData: any = null;
 
-                  const shopData = await shopRes.json();
+                for (const cat of categories) {
+                  try {
+                    const shopRes = await fetch(
+                      `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/city/${currentCity}/${cat}/${rec._id}`,
+                      {
+                        method: "GET",
+                        headers: {
+                          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                          "Content-Type": "application/json",
+                        },
+                      }
+                    );
 
-                  if (shopData?.success && shopData?.data) {
-                    return {
-                      ...shopData.data,
-                      category, // Ensure normalized category is present
-                      aiReason: rec.reason,
-                    };
+                    if (!shopRes.ok) continue;
+
+                    const data = await shopRes.json();
+
+                    if (data?.success && data?.data) {
+                      const shop = data.data;
+
+                      // Normalize images/photos fields
+                      const images =
+                        shop.images?.map((img: any) =>
+                          typeof img === "string" ? img : img?.url
+                        ) ||
+                        shop.photos?.map((img: any) =>
+                          typeof img === "string" ? img : img?.url
+                        ) ||
+                        [];
+
+                      shopData = {
+                        ...shop,
+                        images,
+                        lat: shop.lat ? parseFloat(shop.lat) : undefined,
+                        lon: shop.lon ? parseFloat(shop.lon) : undefined,
+                        category: cat,
+                        aiReason: rec.reason,
+                      };
+
+                      break; // Found the correct category
+                    }
+                  } catch (err) {
+                    console.error("Category fetch failed:", cat, err);
                   }
-
-                  // Fallback: If not in DB, return the original AI recommendation
-                  return {
-                    ...rec,
-                    category,
-                    aiReason: rec.reason,
-                    name: rec.shops || rec.name, // Normalize name field
-                  };
-                } catch (err) {
-                  console.error("Error fetching shop details:", err);
-                  return {
-                    ...rec,
-                    aiReason: rec.reason,
-                    name: rec.shops || rec.name,
-                  };
                 }
+
+                if (shopData) {
+                  return shopData;
+                }
+
+                // Fallback: If no category fetch succeeded, use original AI data
+                console.warn(`Detail fetch failed for ${rec._id} in all categories. Using fallback.`);
+                return {
+                  ...rec,
+                  lat: rec.lat ? parseFloat(rec.lat) : undefined,
+                  lon: rec.lon ? parseFloat(rec.lon) : undefined,
+                  category: "Place", // Default fallback category
+                  aiReason: rec.reason,
+                  name: rec.shops || rec.name,
+                };
               })
             );
 

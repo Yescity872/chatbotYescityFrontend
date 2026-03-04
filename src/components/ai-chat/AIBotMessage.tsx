@@ -1,4 +1,4 @@
-import RecommendationCard from "./RecommendationCard";
+import CategoryCardFactory from "./CategoryCardFactory";
 
 export default function AIBotMessage({ 
   message, 
@@ -26,7 +26,7 @@ export default function AIBotMessage({
         <div className="w-full max-w-[100vw] sm:max-w-4xl overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide">
           <div className="flex gap-4 pr-4">
             {message.recommendations!.map((item, idx) => (
-              <RecommendationCard 
+              <CategoryCardFactory 
                 key={idx} 
                 item={item} 
                 onMapRequest={onMapRequest}

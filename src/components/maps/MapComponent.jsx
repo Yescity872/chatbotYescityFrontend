@@ -285,6 +285,21 @@ function getAuthToken() {
   return tokenCookie ? tokenCookie.split('=')[1] : null;
 }
 
+/**
+ * @typedef {Object} MapComponentProps
+ * @property {string} cityName
+ * @property {string} [selectedCategory]
+ * @property {boolean} [isNearbyMode]
+ * @property {number} [radius]
+ * @property {string | null} [selectedItemId]
+ * @property {{lat: number, lon: number} | null} [focusCoords]
+ * @property {Function} [onMarkerClick]
+ * @property {boolean} [isWishlistMode]
+ * @property {string} [searchQuery]
+ * @property {any[]} [markers]
+ */
+
+/** @param {MapComponentProps} props */
 export default function MapComponent({
   selectedCategory = "All",
   cityName,
@@ -295,7 +310,7 @@ export default function MapComponent({
   onMarkerClick,
   isWishlistMode = false,
   searchQuery = "",
-  markers = null, // ✅ New prop for direct markers
+  markers = [], // ✅ New prop for direct markers
 }) {
   const [data, setData] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
@@ -438,6 +453,14 @@ export default function MapComponent({
     visibleMarkers = filterItemsBySearch(visibleMarkers, searchQuery);
   }
 
+  // ✅ Ensure selected item is ALWAYS visible (overrides search filter)
+  if (selectedItemId) {
+    const selectedItem = allMarkers.find(m => m._id === selectedItemId);
+    if (selectedItem && !visibleMarkers.some(m => m._id === selectedItemId)) {
+      visibleMarkers.push(selectedItem);
+    }
+  }
+
   // ✅ Radius filtering (Nearby Mode)
   if (isNearbyMode && userLocation && isValidCoordinate(userLocation.lat, userLocation.lon)) {
     visibleMarkers = visibleMarkers.filter(
@@ -447,16 +470,34 @@ export default function MapComponent({
     );
   }
 
-  // ✅ Combine with passed markers if any
+  // ✅ Combine with passed markers if any (Fixes research-only items)
   if (markers && Array.isArray(markers)) {
     const validPassedMarkers = markers
       .map(m => {
         const coords = normalizeCoordinates(m);
-        return { ...m, lat: coords.lat, lon: coords.lon };
+        return { 
+          ...m, 
+          lat: coords.lat, 
+          lon: coords.lon,
+          category: m.category || (isShopOrFood(m) ? "Food" : "Place") // Simple heuristic
+        };
       })
       .filter(m => isValidCoordinate(m.lat, m.lon));
     
-    visibleMarkers = [...visibleMarkers, ...validPassedMarkers];
+    // Add passed markers if not already in visibleMarkers
+    validPassedMarkers.forEach(pm => {
+      if (!visibleMarkers.some(vm => vm._id === pm._id)) {
+        visibleMarkers.push(pm);
+      }
+    });
+  }
+
+  // Helper for marker category detection
+  function isShopOrFood(item) {
+    const name = (item.shops || item.name || "").toLowerCase();
+    const reason = (item.aiReason || item.reason || item.description || "").toLowerCase();
+    return name.includes('food') || name.includes('restaurant') || 
+           reason.includes('food') || reason.includes('taste');
   }
 
   return (

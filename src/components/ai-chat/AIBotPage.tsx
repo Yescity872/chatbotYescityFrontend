@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import Sidebar from '@/components/maps/Sidebar';
 
 // Dynamic import for Map to avoid SSR issues with Leaflet
-const MapComponent = dynamic(() => import('@/components/maps/MapComponent.jsx'), {
+const MapComponent = dynamic<MapComponentProps>(() => import('@/components/maps/MapComponent.jsx'), {
   ssr: false,
   loading: () => <div className="w-full h-full flex items-center justify-center bg-gray-100/10 text-white/40">Loading Map...</div>
 });
@@ -19,6 +19,22 @@ interface MapParams {
   cityName: string;
   category?: string;
   searchQuery?: string;
+  id?: string;
+  coords?: { lat: number; lon: number };
+  markers?: any[];
+}
+
+interface MapComponentProps {
+  cityName: string;
+  selectedCategory?: string;
+  searchQuery?: string;
+  selectedItemId?: string | null;
+  focusCoords?: { lat: number; lon: number } | null;
+  onMarkerClick?: (id: string, coords: { lat: number; lon: number }) => void;
+  markers?: any[];
+  radius?: number;
+  isNearbyMode?: boolean;
+  isWishlistMode?: boolean;
 }
 
 export default function AIBotPage() {
@@ -39,15 +55,20 @@ export default function AIBotPage() {
   const handleMapRequest = (params: any) => {
     setMapParams(params);
     setIsSidebarOpen(true);
-    setSelectedItemId(null);
-    setFocusCoords(null);
+    
+    // Set focus if coordinates/ID are provided
+    if (params.id) setSelectedItemId(params.id);
+    else setSelectedItemId(null);
+    
+    if (params.coords) setFocusCoords(params.coords);
+    else setFocusCoords(null);
   };
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
 
-  const handleMarkerClick = (coords: { lat: number, lon: number }, id: string) => {
+  const handleMarkerClick = (id: string, coords: { lat: number, lon: number }) => {
     setSelectedItemId(id);
     setFocusCoords(coords);
   };
@@ -207,13 +228,14 @@ export default function AIBotPage() {
                   >
                     <X size={24} />
                   </button>
-                  <MapComponent
+                   <MapComponent
                     cityName={mapParams.cityName}
                     selectedCategory={mapParams.category || "All"}
                     searchQuery={mapParams.searchQuery || ""}
                     selectedItemId={selectedItemId}
                     focusCoords={focusCoords}
                     onMarkerClick={handleMarkerClick}
+                    markers={mapParams.markers}
                   />
                 </div>
               </motion.div>
